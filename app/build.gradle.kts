@@ -65,8 +65,7 @@ secrets {
 }
 
 dependencies {
-    // ဒီနေရာမှာ ထည့်ပါ
-    implementation('androidx.appcompat:appcompat:1.7.0')
+    // ဒီနေရာမှာ ထည့်ပါimplementation("androidx.appcompat:appcompat:1.7.0")
 
     // အောက်က တခြား dependencies တွေ ဆက်ရှိနေရမယ်
     implementation(platform(libs.androidx.compose.bom))
