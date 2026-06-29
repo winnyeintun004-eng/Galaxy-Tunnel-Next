@@ -65,13 +65,16 @@ secrets {
 }
 
 dependencies {
-  // ⬇️ ဒီနေရာမှာ ကွက်တိ လာထည့်ပေးလိုက်ပါဗျာ
-  implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
+    // ဒီနေရာမှာ ထည့်ပါ
+    implementation('androidx.appcompat:appcompat:1.7.0')
 
-  implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
-  implementation(libs.accompanist.permissions)
-  implementation(libs.androidx.activity.compose)
+    // အောက်က တခြား dependencies တွေ ဆက်ရှိနေရမယ်
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.accompanist.permissions)
+    implementation(libs.androidx.activity.compose)
+    // ... ကျန်တဲ့ implementation အားလုံး
+  
   implementation(libs.androidx.compose.material.icons.core)
   implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.compose.material3)
