@@ -78,7 +78,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var metricsJob: Job? = null
 
     // GitHub Raw URL (User can change this in the future)
-    private val DEFAULT_SUB_URL = "https://raw.githubusercontent.com/Galaxy-Tunnel/ONE-AGENT/refs/heads/main/servers.txt"
+    private val DEFAULT_SUB_URL = "https://raw.githubusercontent.com/yourusername/yourrepo/main/servers.txt"
 
     init {
         // Default local server
