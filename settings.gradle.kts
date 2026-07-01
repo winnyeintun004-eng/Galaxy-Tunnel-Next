@@ -1,21 +1,22 @@
 pluginManagement {
-  repositories {
-    google()        // ← content filter ဖြုတ်
-    mavenCentral()
-    gradlePluginPortal()
-  }
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
 }
-
-plugins { id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0" }
 
 dependencyResolutionManagement {
-  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-  repositories {
-    google()
-    mavenCentral()
-  }
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        flatDir {
+            dirs("v2ray/libs")
+        }
+    }
 }
 
-rootProject.name = "Galaxy Tunnel Next"  // ← app name နဲ့ ကိုက်အောင်
-
+rootProject.name = "Galaxy-Tunnel-Next"
 include(":app")
+include(":v2ray")  // ← ADD THIS LINE
