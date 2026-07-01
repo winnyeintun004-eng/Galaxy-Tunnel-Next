@@ -13,18 +13,20 @@ import android.os.ParcelFileDescriptor;
 import androidx.core.app.NotificationCompat;
 
 public class V2RayVpnService extends VpnService {
-    
+
     private static final String CHANNEL_ID = "v2ray_vpn_channel";
     private static final int NOTIFICATION_ID = 1;
     private ParcelFileDescriptor vpnInterface;
-    
+
     @Override
-    public IBinder onBind(Intent intent) { return null; }
-    
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) return START_NOT_STICKY;
-        
+
         String action = intent.getAction();
         if ("START".equals(action)) {
             String config = intent.getStringExtra("CONFIG");
@@ -35,7 +37,7 @@ public class V2RayVpnService extends VpnService {
         }
         return START_NOT_STICKY;
     }
-    
+
     private void startVpn(String config, String remark) {
         Builder builder = new Builder();
         builder.addAddress("10.0.0.2", 32);
@@ -43,13 +45,13 @@ public class V2RayVpnService extends VpnService {
         builder.addDnsServer("1.1.1.1");
         builder.setMtu(1500);
         builder.setSession(remark != null ? remark : "GalaxyTunnel");
-        
+
         vpnInterface = builder.establish();
-        
+
         Notification notification = createNotification(remark);
         startForeground(NOTIFICATION_ID, notification);
     }
-    
+
     private void stopVpn() {
         if (vpnInterface != null) {
             try { vpnInterface.close(); } catch (Exception e) {}
@@ -58,7 +60,7 @@ public class V2RayVpnService extends VpnService {
         stopForeground(true);
         stopSelf();
     }
-    
+
     private Notification createNotification(String remark) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
@@ -67,12 +69,12 @@ public class V2RayVpnService extends VpnService {
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) manager.createNotificationChannel(channel);
         }
-        
+
         PendingIntent pendingIntent = PendingIntent.getActivity(
             this, 0, new Intent(this, V2RayVpnService.class),
             PendingIntent.FLAG_IMMUTABLE
         );
-        
+
         return new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("GalaxyTunnel VPN")
             .setContentText(remark != null ? "Connected: " + remark : "VPN Active")
