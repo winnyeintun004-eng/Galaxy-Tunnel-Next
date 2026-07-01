@@ -1,132 +1,143 @@
 package com.galaxy.tunnel
 
-import android.net.Uri
-import org.json.JSONArray
+import android.util.Base64
 import org.json.JSONObject
-import java.net.URLDecoder
 
 object V2RayParser {
 
-    /**
-     * vless:// သို့မဟုတ် trojan:// လင့်ခ်များကို 
-     * V2Ray Core Engine စစ်စစ် ဖတ်ရှုနိုင်မည့် တရားဝင် Outbound JSON Standard သို့ ပြောင်းလဲပေးသည့် လုပ်ဆောင်ချက်
-     */
-    fun convertUrlToJson(urlStr: String): String {
+    fun convertUrlToJson(uri: String): String {
+        return when {
+            uri.startsWith("vless://") -> parseVlessUri(uri) ?: ""
+            uri.startsWith("vmess://") -> parseVmessUri(uri) ?: ""
+            else -> ""
+        }
+    }
+
+    private fun parseVlessUri(uri: String): String? {
+        if (!uri.startsWith("vless://")) return null
+
         try {
-            val trimmed = urlStr.trim()
-            // Protocol စစ်ဆေးခြင်း
-            if (!trimmed.startsWith("vless://") && !trimmed.startsWith("trojan://")) {
-                return ""
-            }
+            val cleanUri = uri.replace("vless://", "")
+            val parts = cleanUri.split("@", "?", "#")
+            if (parts.size < 2) return null
 
-            // Android Uri Parser ဖြင့် လင့်ခ်တစ်ခုလုံးကို အစိတ်အပိုင်း ခွဲထုတ်ခြင်း
-            val uri = Uri.parse(trimmed)
-            val protocol = uri.scheme ?: "vless"
-            
-            // UserInfo နေရာမှ UUID (VLESS) သို့မဟုတ် Password (Trojan) ကို ယူခြင်း
-            val userInfo = uri.userInfo ?: ""
-            val host = uri.host ?: ""
-            val port = if (uri.port != -1) uri.port else 443
+            val uuid = parts[0]
+            val serverPart = parts[1].split(":")
+            if (serverPart.size < 2) return null
 
-            // Query Parameters များကို ခွဲထုတ်ခြင်း (WS, TLS, Path, SNI စသည်)
-            val rawPath = uri.getQueryParameter("path") ?: "/"
-            val path = try { URLDecoder.decode(rawPath, "UTF-8") } catch (e: Exception) { rawPath }
-            val security = uri.getQueryParameter("security") ?: "none"
-            val sni = uri.getQueryParameter("sni") ?: ""
-            val hostHeader = uri.getQueryParameter("host") ?: ""
-            val networkType = uri.getQueryParameter("type") ?: "tcp" // ws သို့မဟုတ် tcp
+            val address = serverPart[0]
+            val port = serverPart[1].toIntOrNull() ?: 443
 
-            // --- V2Ray Configuration JSON တည်ဆောက်ခြင်း ---
-            val rootJson = JSONObject()
+            val queryParams = if (parts.size > 2) parseQueryString(parts[2]) else mapOf()
+            val remark = if (parts.size > 3) parts[3] else "Server"
 
-            // ၁။ Inbounds ပိုင်း (Android VPN Service မှ ပို့ပေးမည့် Data ကို လက်ခံရန် Local Port ဖွင့်ခြင်း)
-            val inboundsArray = JSONArray()
-            val inboundObject = JSONObject().apply {
-                put("port", 10808) // Local SOCKS Port
-                put("protocol", "socks")
-                put("settings", JSONObject().apply {
-                    put("auth", "noauth")
-                    put("udp", true)
-                })
-            }
-            inboundsArray.put(inboundObject)
-            rootJson.put("inbounds", inboundsArray)
-
-            // ၂။ Outbounds ပိုင်း (တကယ့်အပြင်က VPN Server ဆီ ဝှက်စာလုပ်ပြီး ချိတ်ဆက်မည့်အပိုင်း)
-            val outboundsArray = JSONArray()
-            val outboundObject = JSONObject()
-            outboundObject.put("protocol", protocol)
-
-            // ဆာဗာ သတ်မှတ်ချက်များ (Address, Port, Users)
-            val vnextOrServersArray = JSONArray()
-            val serverNode = JSONObject().apply {
-                put("address", host)
-                put("port", port)
-                
-                val usersArray = JSONArray()
-                val userObject = JSONObject()
-                
-                if (protocol == "vless") {
-                    userObject.put("id", userInfo)
-                    userObject.put("encryption", "none")
-                } else if (protocol == "trojan") {
-                    userObject.put("password", userInfo)
-                }
-                
-                usersArray.put(userObject)
-                put("users", usersArray)
-            }
-            vnextOrServersArray.put(serverNode)
-
-            // Protocol အလိုက် Key ချိန်ညှိခြင်း (VLESS သည့် vnext သုံးပြီး Trojan သည် servers သုံးသည်)
-            val settingsObject = JSONObject()
-            if (protocol == "vless") {
-                settingsObject.put("vnext", vnextOrServersArray)
-            } else if (protocol == "trojan") {
-                settingsObject.put("servers", vnextOrServersArray)
-            }
-            outboundObject.put("settings", settingsObject)
-
-            // Stream Settings (TLS နှင့် WebSocket လမ်းကြောင်း ခွဲဝေမှုအပိုင်း) - Cloudflare ကျော်ရန် အဓိကကျသည်
-            val streamSettingsObject = JSONObject().apply {
-                put("network", networkType)
-                put("security", security)
-
-                // TLS စနစ် ပါဝင်ပါက SNI ထည့်သွင်းခြင်း
-                if (security == "tls") {
-                    val tlsSettings = JSONObject().apply {
-                        if (sni.isNotEmpty()) {
-                            put("serverName", sni)
-                        }
-                        put("allowInsecure", false)
-                    }
-                    put("tlsSettings", tlsSettings)
-                }
-
-                // WebSocket (ws) စနစ်ဖြစ်ပါက Path နှင့် Host Header သတ်မှတ်ခြင်း
-                if (networkType == "ws") {
-                    val wsSettings = JSONObject().apply {
-                        val headersObject = JSONObject()
-                        if (hostHeader.isNotEmpty()) {
-                            headersObject.put("Host", hostHeader)
-                        }
-                        put("headers", headersObject)
-                        put("path", path)
-                    }
-                    put("wsSettings", wsSettings)
-                }
-            }
-            
-            outboundObject.put("streamSettings", streamSettingsObject)
-            outboundsArray.put(outboundObject)
-            rootJson.put("outbounds", outboundsArray)
-
-            // JSON အား စနစ်တကျ Indent ချပြီး စာသား (String) အဖြစ် ပြန်ထုတ်ပေးခြင်း
-            return rootJson.toString(2)
-
+            return buildVlessJson(uuid, address, port, queryParams, remark)
         } catch (e: Exception) {
             e.printStackTrace()
-            return ""
+            return null
+        }
+    }
+
+    private fun parseQueryString(query: String): Map<String, String> {
+        return query.split("&").mapNotNull { param ->
+            val kv = param.split("=")
+            if (kv.size == 2) kv[0] to kv[1] else null
+        }.toMap()
+    }
+
+    private fun buildVlessJson(
+        uuid: String, address: String, port: Int,
+        params: Map<String, String>, remark: String
+    ): String {
+        val security = params["security"] ?: "tls"
+        val sni = params["sni"] ?: address
+        val path = params["path"] ?: "/"
+        val type = params["type"] ?: "tcp"
+        val fp = params["fp"] ?: "chrome"
+
+        val config = JSONObject().apply {
+            put("log", JSONObject().put("loglevel", "warning"))
+            put("inbounds", org.json.JSONArray().apply {
+                put(JSONObject().apply {
+                    put("tag", "socks")
+                    put("port", 10808)
+                    put("protocol", "socks")
+                    put("settings", JSONObject().apply {
+                        put("auth", "noauth")
+                        put("udp", true)
+                        put("ip", "127.0.0.1")
+                    })
+                })
+            })
+            put("outbounds", org.json.JSONArray().apply {
+                put(JSONObject().apply {
+                    put("tag", "proxy")
+                    put("protocol", "vless")
+                    put("settings", JSONObject().apply {
+                        put("vnext", org.json.JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("address", address)
+                                put("port", port)
+                                put("users", org.json.JSONArray().apply {
+                                    put(JSONObject().apply {
+                                        put("id", uuid)
+                                        put("security", "auto")
+                                        put("encryption", "none")
+                                    })
+                                })
+                            })
+                        })
+                    })
+                    put("streamSettings", JSONObject().apply {
+                        put("network", type)
+                        put("security", security)
+                        if (security == "tls") {
+                            put("tlsSettings", JSONObject().apply {
+                                put("serverName", sni)
+                                put("fingerprint", fp)
+                            })
+                        }
+                        if (type == "ws") {
+                            put("wsSettings", JSONObject().apply {
+                                put("path", path)
+                                put("headers", JSONObject().put("Host", sni))
+                            })
+                        }
+                    })
+                })
+                put(JSONObject().apply {
+                    put("tag", "direct")
+                    put("protocol", "freedom")
+                })
+                put(JSONObject().apply {
+                    put("tag", "block")
+                    put("protocol", "blackhole")
+                })
+            })
+            put("routing", JSONObject().apply {
+                put("domainStrategy", "IPIfNonMatch")
+                put("rules", org.json.JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("type", "field")
+                        put("ip", org.json.JSONArray().apply {
+                            put("geoip:private")
+                        })
+                        put("outboundTag", "direct")
+                    })
+                })
+            })
+        }
+
+        return config.toString()
+    }
+
+    private fun parseVmessUri(uri: String): String? {
+        if (!uri.startsWith("vmess://")) return null
+        return try {
+            val base64 = uri.replace("vmess://", "")
+            String(Base64.decode(base64, Base64.DEFAULT), Charsets.UTF_8)
+        } catch (e: Exception) {
+            null
         }
     }
 }
