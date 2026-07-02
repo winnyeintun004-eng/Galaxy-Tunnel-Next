@@ -1,10 +1,10 @@
 plugins {
-  alias(libs.plugins.android.application)
-  alias(libs.plugins.kotlin.compose)
-  alias(libs.plugins.google.devtools.ksp)
-  alias(libs.plugins.secrets)
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)   // ✅ ဒီတစ်ကြောင်း ထည့်ပါ (kotlin-compose ရှေ့မှာဖြစ်ဖြစ် နောက်မှာဖြစ်ဖြစ်)
+    alias(libs.plugins.kotlin.compose)    // ထားလို့ရတယ်
+    alias(libs.plugins.google.devtools.ksp)
+    alias(libs.plugins.secrets)
 }
-
 android {
   namespace = "com.galaxy.tunnel"
   compileSdk = 35
