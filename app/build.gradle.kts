@@ -2,7 +2,6 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
-  // alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
 }
 
@@ -28,12 +27,6 @@ android {
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
     }
-    create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
-    }
   }
 
   buildTypes {
@@ -44,20 +37,24 @@ android {
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
-      signingConfig = signingConfigs.getByName("debugConfig")
+      // Use default debug signing (no explicit config needed for GitHub Actions)
     }
   }
-  
+
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
   }
-  
+
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+
   buildFeatures {
     compose = true
     buildConfig = true
   }
-  
+
   testOptions { 
     unitTests { 
       isIncludeAndroidResources = true 
@@ -71,10 +68,8 @@ secrets {
 }
 
 dependencies {
-    // ← V2Ray MODULE (ADD THIS LINE)
     implementation(project(":v2ray"))
-    
-    // Existing dependencies (DO NOT TOUCH)
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
     implementation(libs.accompanist.permissions)
